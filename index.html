@@ -1,16 +1,254 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>My AI game</title>
+  <title>Space Wars</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+    }
+
+    canvas {
+      display: block;
+      margin: auto;
+      background: #000;
+      border: 2px solid white;
+    }
+  </style>
 </head>
 <body>
 
-<h1>AI game goes here</h1>
+<canvas id="gameCanvas" width="800" height="500"></canvas>
 
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
+let score = 0;
+let gameOver = false;
+let keys = {};
 
-<script src="game.js"></script>
+const player = {
+  x: 370,
+  y: 430,
+  width: 60,
+  height: 30,
+  speed: 7
+};
+
+let bullets = [];
+let enemyBullets = [];
+let enemies = [];
+let stars = [];
+
+// Controls
+document.addEventListener("keydown", (e) => {
+  keys[e.key] = true;
+
+  if (e.code === "Space" && !gameOver) {
+    bullets.push({
+      x: player.x + player.width / 2 - 2,
+      y: player.y
+    });
+  }
+});
+
+document.addEventListener("keyup", (e) => {
+  keys[e.key] = false;
+});
+
+// Stars
+for (let i = 0; i < 100; i++) {
+  stars.push({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    size: Math.random() * 2
+  });
+}
+
+// Spawn enemies
+setInterval(() => {
+  if (!gameOver) {
+    enemies.push({
+      x: Math.random() * (canvas.width - 50),
+      y: -30,
+      width: 50,
+      height: 25,
+      speed: 2 + Math.random() * 2
+    });
+  }
+}, 1000);
+
+// Enemy shooting
+setInterval(() => {
+  enemies.forEach(enemy => {
+    enemyBullets.push({
+      x: enemy.x + enemy.width / 2,
+      y: enemy.y + enemy.height
+    });
+  });
+}, 1500);
+
+function update() {
+  if (gameOver) return;
+
+  // Move player
+  if (keys["ArrowLeft"] && player.x > 0) {
+    player.x -= player.speed;
+  }
+
+  if (
+    keys["ArrowRight"] &&
+    player.x < canvas.width - player.width
+  ) {
+    player.x += player.speed;
+  }
+
+  // Move player bullets
+  bullets.forEach((bullet, index) => {
+    bullet.y -= 8;
+
+    if (bullet.y < 0) {
+      bullets.splice(index, 1);
+    }
+  });
+
+  // Move enemy bullets
+  enemyBullets.forEach((bullet, index) => {
+    bullet.y += 5;
+
+    // Hit player
+    if (
+      bullet.x < player.x + player.width &&
+      bullet.x + 5 > player.x &&
+      bullet.y < player.y + player.height &&
+      bullet.y + 10 > player.y
+    ) {
+      gameOver = true;
+    }
+
+    if (bullet.y > canvas.height) {
+      enemyBullets.splice(index, 1);
+    }
+  });
+
+  // Move enemies
+  enemies.forEach((enemy, eIndex) => {
+    enemy.y += enemy.speed;
+
+    // Enemy hits player
+    if (
+      enemy.x < player.x + player.width &&
+      enemy.x + enemy.width > player.x &&
+      enemy.y < player.y + player.height &&
+      enemy.y + enemy.height > player.y
+    ) {
+      gameOver = true;
+    }
+
+    // Your bullets hit enemy
+    bullets.forEach((bullet, bIndex) => {
+      if (
+        bullet.x < enemy.x + enemy.width &&
+        bullet.x + 5 > enemy.x &&
+        bullet.y < enemy.y + enemy.height &&
+        bullet.y + 10 > enemy.y
+      ) {
+        enemies.splice(eIndex, 1);
+        bullets.splice(bIndex, 1);
+        score += 10;
+      }
+    });
+  });
+
+  // Move stars
+  stars.forEach(star => {
+    star.y += 1;
+    if (star.y > canvas.height) {
+      star.y = 0;
+      star.x = Math.random() * canvas.width;
+    }
+  });
+}
+
+function drawSpaceship(x, y) {
+  ctx.fillStyle = "cyan";
+
+  ctx.beginPath();
+  ctx.moveTo(x + 30, y);
+  ctx.lineTo(x, y + 30);
+  ctx.lineTo(x + 60, y + 30);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawEnemy(x, y) {
+  ctx.fillStyle = "red";
+  ctx.fillRect(x, y, 50, 25);
+
+  ctx.fillStyle = "orange";
+  ctx.fillRect(x + 10, y - 5, 30, 10);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Stars
+  ctx.fillStyle = "white";
+  stars.forEach(star => {
+    ctx.fillRect(star.x, star.y, star.size, star.size);
+  });
+
+  // Player
+  drawSpaceship(player.x, player.y);
+
+  // Player bullets
+  ctx.fillStyle = "yellow";
+  bullets.forEach(bullet => {
+    ctx.fillRect(bullet.x, bullet.y, 5, 12);
+  });
+
+  // Enemy bullets
+  ctx.fillStyle = "red";
+  enemyBullets.forEach(bullet => {
+    ctx.fillRect(bullet.x, bullet.y, 5, 10);
+  });
+
+  // Enemies
+  enemies.forEach(enemy => {
+    drawEnemy(enemy.x, enemy.y);
+  });
+
+  // Score
+  ctx.fillStyle = "white";
+  ctx.font = "20px Arial";
+  ctx.fillText("Score: " + score, 20, 30);
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = "red";
+    ctx.font = "50px Arial";
+    ctx.fillText("GAME OVER", 240, 220);
+
+    ctx.font = "25px Arial";
+    ctx.fillStyle = "white";
+    ctx.fillText(
+      "Refresh to Play Again",
+      270,
+      270
+    );
+  }
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+
 </body>
 </html>
-
-
